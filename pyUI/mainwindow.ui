@@ -220,6 +220,9 @@
       <string>List Machines</string>
      </attribute>
      <widget class="QTableWidget" name="tableWidget_listMachines">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
       <property name="geometry">
        <rect>
         <x>0</x>
@@ -245,7 +248,16 @@
       <property name="editTriggers">
        <set>QAbstractItemView::NoEditTriggers</set>
       </property>
+      <property name="showGrid">
+       <bool>true</bool>
+      </property>
+      <property name="gridStyle">
+       <enum>Qt::DashLine</enum>
+      </property>
       <property name="sortingEnabled">
+       <bool>false</bool>
+      </property>
+      <property name="wordWrap">
        <bool>true</bool>
       </property>
       <property name="rowCount">

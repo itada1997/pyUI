@@ -26,7 +26,7 @@ class Machine(QObject):
         self.client = mqtt.Client(str(self.idMachine))
         self.client.connect(self.broker_url, 1883)
         self.client.loop_start()
-        time.sleep(10)
+        time.sleep(2)
         print(self.idMachine)
 
     def checkValidData(self,client, userdata, message):
