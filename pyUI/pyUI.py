@@ -5,13 +5,13 @@ import threading
 import sys
 import time
 from PyQt5 import QtWidgets 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal,QObject
 from mainwindow import Ui_MainWindow
 
 ### global variable
-class Machine(QThread):
+class Machine(QObject):
     def __init__(self, idmachine, line, operation, broker_url):
-        super(QThread, self).__init__()
+        super(QObject, self).__init__()
         self.broker_url = broker_url
         self.idMachine = idmachine
         self.line = line
@@ -26,7 +26,7 @@ class Machine(QThread):
         self.client = mqtt.Client(str(self.idMachine))
         self.client.connect(self.broker_url, 1883)
         self.client.loop_start()
-        time.sleep(1)
+        time.sleep(10)
         print(self.idMachine)
 
     def checkValidData(self,client, userdata, message):
@@ -186,16 +186,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         for index_row, row in enumerate(records):
                 self.listMachines.append(Machine(str(row[1]),str(row[0]),str(row[3]),self.broker_url))
                 print(self.listMachines[index_row].idMachine)
-                #self.listThread.append(QThread()) 
+                self.listThread.append(QThread()) 
         for index_machine, machine in enumerate(self.listMachines):
             self.ui.tableWidget_listMachines.setItem(index_machine,0,QtWidgets.QTableWidgetItem(machine.idMachine))
             self.ui.tableWidget_listMachines.setItem(index_machine,1,QtWidgets.QTableWidgetItem(machine.line))
             self.ui.tableWidget_listMachines.setItem(index_machine,2,QtWidgets.QTableWidgetItem(machine.amoutOfProducts))
-
-        for machine in self.listMachines:
-            machine.started.connect(machine.joinInMqtt)
-        for machine in self.listMachines:
-            machine.start()
+            #self.listThread[index_machine].create(machine.joinInMqtt)
+        for index_machine, machine in enumerate(self.listMachines):
+            machine.moveToThread(self.listThread[index_machine])
+            self.listThread[index_machine].started.connect(machine.joinInMqtt)
+        for thread in self.listThread:
+            thread.start()
 
         self.ui.plainTextEdit.appendPlainText(F'Amount of {selectedGroup} : {len(records)}')
         self.ui.plainTextEdit.appendPlainText('DONE')
