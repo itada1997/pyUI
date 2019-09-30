@@ -8,7 +8,7 @@
     <x>0</x>
     <y>0</y>
     <width>906</width>
-    <height>660</height>
+    <height>651</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -23,6 +23,15 @@
   <property name="windowIcon">
    <iconset>
     <normaloff>rcs/logo.png</normaloff>rcs/logo.png</iconset>
+  </property>
+  <property name="toolTip">
+   <string/>
+  </property>
+  <property name="statusTip">
+   <string>itada1997</string>
+  </property>
+  <property name="whatsThis">
+   <string/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QGroupBox" name="groupBox">
@@ -92,7 +101,7 @@
       <item row="0" column="1">
        <widget class="QLineEdit" name="lineEdit_ip">
         <property name="text">
-         <string>10.113.91.111</string>
+         <string>192.168.0.108</string>
         </property>
         <property name="placeholderText">
          <string/>
@@ -228,7 +237,7 @@
         <x>0</x>
         <y>5</y>
         <width>561</width>
-        <height>551</height>
+        <height>511</height>
        </rect>
       </property>
       <property name="font">
@@ -365,12 +374,12 @@
       <row/>
       <column>
        <property name="text">
-        <string>LINE</string>
+        <string>MecID</string>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>MecID</string>
+        <string>LINE</string>
        </property>
       </column>
       <column>
@@ -383,6 +392,38 @@
         <string>ON/OFF</string>
        </property>
       </column>
+     </widget>
+     <widget class="QWidget" name="">
+      <property name="geometry">
+       <rect>
+        <x>360</x>
+        <y>520</y>
+        <width>201</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>Time OFF( in minutes)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="lineEdit_setTimeOff">
+         <property name="text">
+          <string>5</string>
+         </property>
+         <property name="maxLength">
+          <number>30000</number>
+         </property>
+         <property name="frame">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_2">

@@ -6,13 +6,24 @@ import sys
 import time
 from PyCRC.CRC16 import CRC16
 from PyQt5 import QtWidgets 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal,QObject
+from PyQt5.QtCore import Qt, QThread, pyqtSignal,QObject,pyqtSlot
 from mainwindow import Ui_MainWindow
+from PyQt5.QtWidgets import QApplication
+listMachines = []
+broker_url = ''
+host = ''
+user = ''
+passwd = ''
+database = ''
 
-### global variable
+class AllSignal(QObject):
+
+    qtyChanged = pyqtSignal(int, int)
+
+
 class Machine(QObject):
-    qty =pyqtSignal()
-    def __init__(self, idmachine, line, operation, broker_url):
+   
+    def __init__(self, idmachine, line, operation):
         super(QObject, self).__init__()
         self.broker_url = broker_url
         self.idMachine = idmachine
@@ -21,6 +32,9 @@ class Machine(QObject):
         self.onConnect = False
         self.amoutOfProducts = None
         self.countTimeDown = 0
+        self.flagFirstTime = True
+        self.timeDuration = 0
+        self.signal1 = AllSignal()
 
     def joinInMqtt(self):
         self.topicMainData = 'phubai2/realtimeproduction/topicMainData/{}'.format(self.idMachine)
@@ -29,35 +43,40 @@ class Machine(QObject):
         self.client.connect(self.broker_url, 1883)
         self.client.loop_start()
 
-
     def checkValidData(self,client, userdata, message):
         try:
-            array_message =""
+            array_message = ""
             array_message = str(message.payload.decode())
             if len(array_message) != 41:
                 raise Exception
-            
-            
             self.__crcChecksum = int(array_message[-5:])
             self.__crcChecksum_new = CRC16().calculate(str(array_message[:-5]))
-            print(self.__crcChecksum_new)
+            
             if (self.__crcChecksum_new != self.__crcChecksum):
                 raise Exception
-            self.__idMachine_mgs = int(array_message[1:11])
+
+            self.__idMachine_mgs = str(int(array_message[1:11]))
+
             if (self.__idMachine_mgs != self.idMachine):
                 raise Exception
             self.__amoutOfProducts_mgs = int(array_message[31:36])
             if (self.amoutOfProducts == self.__amoutOfProducts_mgs):
                 raise Exception
+            #print(self.__idMachine_mgs, self.idMachine)
+
             self.__idhr_mgs = int(array_message[11:21])
             self.__wls_mgs = int(array_message[21:31])
             #print(" CheckValidData: OK")
             #print("ID: %d\nIDHR: %d\nWls: %d" %
             #(self.__idMachine_mgs,self.__idhr_mgs, self.__wls_mgs))
+            if self.amoutOfProducts == None:
+                self.amoutOfProducts = self.__amoutOfProducts_mgs
+                raise Exception
             self.amoutOfProducts = self.__amoutOfProducts_mgs
+            self.flagFirstTime = False
             self.countTimeDown = 0
+            self.timeDuration = time.time()
             self.onConnect = True
-            qty.e
             self.insertIntoMySQL()
         except Exception:
             #print("error")
@@ -69,41 +88,39 @@ class Machine(QObject):
 
     def insertIntoMySQL(self):
         try:
-            cursor = mydb.cursor()
-            insql = "insert into realtime (IDMay, IDHR, LOT, SLSP, OP) values (%s, %s, %s, %s, %s)"
-            val = (self.idMachine, self.__idhr_mgs, self.__wls_mgs, self.__amoutOfProducts_mgs, self.operation)
+            
+            #mydb = sql.connect(host=host,
+            #            user=user,
+            #            passwd=passwd,
+            #            database=database)
+            #cursor = mydb.cursor()
+            insql = "insert into pj_hbi.realtime (IDMay, IDHR, LOT, SLSP) values (%s, %s, %s, %s)"
+            val = (self.idMachine, self.__idhr_mgs, self.__wls_mgs, self.__amoutOfProducts_mgs)
+        
             cursor.execute(insql, val)
             mydb.commit()
             print("      Machine: {}    AoP: {}".format(self.idMachine,self.__amoutOfProducts_mgs))
 
         except:
             pass
-            #print(" Insert Into MySQL: Failed
-            #Machine:{}".format(self.idMachine))
-
-    def checkIdhr(self,client, userdata, message):
-        pass
 
     def checkOnConnect(self):
         if self.countTimeDown > 300:
-            self.onConnect = False     
+            self.onConnect = False 
+
+    @pyqtSlot()
     def scanData(self):
         while True:
             self.client.subscribe(self.topicMainData)
             self.client.message_callback_add(self.topicMainData,self.checkValidData)
             time.sleep(0.1)
 
-class MyThread(QThread):
-    # Create a counter thread
-    change_value = pyqtSignal()
-    change_value_2 = pyqtSignal()
-    def run(self):
-        self.cnt = 0
-        while self.cnt < 1:
-            self.cnt+=1
-            time.sleep(0.3)
-            self.change_value.emit()
-            self.change_value_2.emit()
+    @pyqtSlot()
+    def scanIDNV(self):
+        while True:
+            self.client.subscribe(self.topicCheckIDHR)
+            #self.client.message_callback_add(self.topicCheckIDHR,self.checkValidData)
+            time.sleep(0.1)
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -111,26 +128,22 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         super(ApplicationWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.ui.lineEdit_setTimeOff.setInputMask('999')
         self.signalButton()
-        self.thread = MyThread()
-        self.thread.change_value.connect(self.table)
-        self.thread.change_value_2.connect(self.table1)
-        Machine.qty.connect(self.updateTable)
-        #self.thread.start()
-        #self.startProgressBar()
-
 
     def signalButton(self):
         self.ui.pushButton_onConnect.clicked.connect(self.onClick_pushButton_onConnect)
         self.ui.pushButton_getList.clicked.connect(self.getListMachines)
         self.ui.pushButton_run.clicked.connect(self.onClick_runButton)
-
+    
+    @pyqtSlot()
     def onClick_pushButton_onConnect(self):
+        global broker_url
         global host 
         global user
         global passwd
         global database
-        self.broker_url = self.ui.lineEdit_ip.text()
+        broker_url = self.ui.lineEdit_ip.text()
         host = self.ui.lineEdit_hostDB.text()
         user = self.ui.lineEdit_userDB.text()
         passwd = self.ui.lineEdit_passwdDB.text()
@@ -151,19 +164,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             text = 'Connect to Database: Failed!'
             self.ui.plainTextEdit.appendPlainText(text)
             del text
-    
-    def table(self):
-        #val = str(val)
-        print(str(self.thread.cnt))
-        rowPosition = self.ui.tableWidget_listMachines.rowCount()
-        self.ui.tableWidget_listMachines.setItem(0,1,QtWidgets.QTableWidgetItem(str(self.thread.cnt)))
 
-    def table1(self):
-        #val = str(val)
-        print(str(self.thread.cnt))
-        rowPosition = self.ui.tableWidget_listMachines.rowCount()
-        self.ui.tableWidget_listMachines.setItem(1,1,QtWidgets.QTableWidgetItem(str(self.thread.cnt)))
-
+    @pyqtSlot()
     def getListMachines(self):
         try:
             self.listGroups = []
@@ -182,49 +184,56 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.ui.plainTextEdit.appendPlainText('Please try to push Connect to Database firstly!')
             pass
 
+    @pyqtSlot()
     def onClick_runButton(self):
-        self.listID = []
-        self.listMachines = []
-        self.listThread = []
         self.ui.tableWidget_listMachines.clearContents()
         selectedGroup = self.ui.comboBox_listMachines.currentText()
-        print(selectedGroup)
         if selectedGroup is None:
             self.ui.plainTextEdit.appendPlainText('Setting isnt complete!')
             return
         self.ui.plainTextEdit.appendPlainText(F'Loading list machines of group {selectedGroup}....')
-        #
         sql_select_Query = "SELECT * FROM pj_hbi.listmachines WHERE GROUPNO='%s'" % selectedGroup
         cursor.execute(sql_select_Query)
         records = cursor.fetchall()
         records.sort(key=lambda x: x[1])
+        self.listMachines = []
+        self.listThread = []
         for index_row, row in enumerate(records):
-                self.listMachines.append(Machine(str(row[0]),str(row[1]),str(row[3]),self.broker_url))
+                self.listMachines.append(Machine(str(row[0]),str(row[1]),str(row[3])))
                 self.listThread.append(QThread()) 
         for index_machine, machine in enumerate(self.listMachines):
-            self.listID.append(machine.idMachine)
-
             self.ui.tableWidget_listMachines.setItem(index_machine,0,QtWidgets.QTableWidgetItem(machine.idMachine))
             self.ui.tableWidget_listMachines.setItem(index_machine,1,QtWidgets.QTableWidgetItem(machine.line))
             machine.joinInMqtt()
+            machine.timeDuration = time.time()
         for index_machine, machine in enumerate(self.listMachines):
             machine.moveToThread(self.listThread[index_machine])
-            #machine.qty.connect(self.updateTa)
             self.listThread[index_machine].started.connect(machine.scanData)
             self.listThread[index_machine].start()
         self.ui.plainTextEdit.appendPlainText(F'Amount of {selectedGroup} : {len(records)}')
         self.ui.plainTextEdit.appendPlainText('DONE')
+        self.updateTable()
 
-        def updateTable(self,id,qty):
-            index = listID.index(id)
-            self.ui.tableWidget_listMachines.setItem(index,2,QtWidgets.QTableWidgetItem(str(qty)))
+    def updateTable(self):
+        while True:
+            QApplication.processEvents()
+            for index_machine, machine in enumerate(self.listMachines):
+                if machine.flagFirstTime == False:
+                    self.ui.tableWidget_listMachines.setItem(index_machine,2,QtWidgets.QTableWidgetItem(str(machine.amoutOfProducts)))
+                else:
+                    self.ui.tableWidget_listMachines.setItem(index_machine,2,QtWidgets.QTableWidgetItem('.....'))
+                sec = int(time.time() - machine.timeDuration)
+                text_time = F'{sec//3600}h {(sec//60)%60}m {sec%60}s'
+                setTimeOff = self.ui.lineEdit_setTimeOff.text()
+                if setTimeOff=="":
+                    setTimeOff = "1"
+                if sec // 60 >= int(setTimeOff):
+                    self.ui.tableWidget_listMachines.setItem(index_machine,3,QtWidgets.QTableWidgetItem(str(text_time)+"    OFF"))
+                else:
+                    self.ui.tableWidget_listMachines.setItem(index_machine,3,QtWidgets.QTableWidgetItem(str(text_time)))
+                
 
 
-    #def startProgressBar(self):
-        
-    #    self.thread = MyThread()
-    #    self.thread.change_value.connect(self.table)
-    #    self.thread.start()
 if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)

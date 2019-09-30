@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>44ff5d30-1875-4659-940e-f04cbe76f89e</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>pyUI.py</StartupFile>
+    <StartupFile>pyUI_v2.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -23,6 +23,9 @@
   <ItemGroup>
     <Compile Include="mainwindow.py" />
     <Compile Include="pyUI.py" />
+    <Compile Include="pyUI_v2.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
